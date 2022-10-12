@@ -1,0 +1,14 @@
+profiles:
+  - name: p1
+    scope: 0
+    freq: 10
+  - name: p2
+    scope: 1
+    freq: 35
+seeds:
+  - url: "http://www.nb.no"
+    profiles:
+      - p1
+  - url: "https://a@www.nb.no:888/a"
+    profiles:
+      - p2

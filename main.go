@@ -8,8 +8,7 @@ import (
 var www *TheWeb
 
 func main() {
-	www = &TheWeb{resources: make(map[string]*WebResource)}
-	loadWeb(www, "webdata.yaml")
+	www = LoadWeb("webdata.yaml")
 
 	sim := simgo.Simulation{}
 	frontier := NewFrontier(&sim)
@@ -40,31 +39,4 @@ func Harvester(proc simgo.Process, frontier *Frontier) {
 		frontier.DoneFetching(qUrl, r)
 		fmt.Printf("[%4.0f] \u2714  %s\n", proc.Now(), qUrl)
 	}
-}
-
-type TheWeb struct {
-	resources map[string]*WebResource
-}
-
-type WebResource struct {
-	Url      string
-	Outlinks []string
-	Status   int
-}
-
-func (w *TheWeb) Fetch(u string) *WebResource {
-	var v *WebResource
-	var ok bool
-	if v, ok = w.resources[u]; ok {
-		if v.Status == 0 {
-			v.Status = 200
-		}
-	} else {
-		v = &WebResource{
-			Url:      u,
-			Outlinks: nil,
-			Status:   404,
-		}
-	}
-	return v
 }

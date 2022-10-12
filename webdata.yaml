@@ -1,13 +1,12 @@
-url: "http://www.nb.no"
-outlinks:
-  - "http://www.nb.no/aaa"
----
-url: "https://a@www.nb.no:888/a"
-outlinks:
-  - "https://a@www.nb.no:888/a/aaa"
-  - "https://a@www.nb.no:888/a/bbb"
----
-url: "https://a@www.nb.no:888/a/aaa"
-outlinks:
-  - "https://a@www.nb.no:888/a/aaa/aaa"
----
+- url: "http://www.nb.no"
+  outlinks:
+    - "http://www.nb.no/aaa"
+
+- url: "https://a@www.nb.no:888/a"
+  outlinks:
+    - "https://a@www.nb.no:888/a/aaa"
+    - "https://a@www.nb.no:888/a/bbb"
+
+- url: "https://a@www.nb.no:888/a/aaa"
+  outlinks:
+    - "https://a@www.nb.no:888/a/aaa/aaa"

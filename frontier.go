@@ -16,12 +16,11 @@ type Frontier struct {
 func NewFrontier(sim *simgo.Simulation) *Frontier {
 	f := &Frontier{
 		sim:    sim,
-		Config: NewConfig(),
+		Config: LoadConfig("config.yaml"),
 		urlQueue: &UrlQueue{
 			valueType: QueuedUrl{},
 		},
 	}
-	f.Config.loadConfig("profiles.yaml", "seeds.yaml")
 	for i := 0; i < len(f.Config.Seeds.OrderedList); i++ {
 		s := Seed{}
 		Decode(f.Config.Seeds.GetIndex(i), &s)
