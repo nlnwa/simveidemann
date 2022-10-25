@@ -10,3 +10,7 @@
 - url: "https://a@www.nb.no:888/a/aaa"
   outlinks:
     - "https://a@www.nb.no:888/a/aaa/aaa"
+
+- url: "http://www.vg.no"
+  outlinks:
+    - "https://www.example.com"

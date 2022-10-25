@@ -4,7 +4,10 @@ profiles:
     freq: 10
   - name: p2
     scope: 1
-    freq: 35
+    freq: 15
+  - name: p3
+    scope: 10
+    freq: 2
 seeds:
   - url: "http://www.nb.no"
     profiles:
@@ -12,3 +15,6 @@ seeds:
   - url: "https://a@www.nb.no:888/a"
     profiles:
       - p2
+  - url: "http://www.vg.no"
+    profiles:
+      - p3

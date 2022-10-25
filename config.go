@@ -20,7 +20,7 @@ type Seeds struct {
 }
 
 func (sl *Seeds) String() string {
-	return sl.OrderedList.String(sl.valueType)
+	return sl.OrderedList.StringT(sl.valueType)
 }
 
 type Seed struct {
@@ -55,20 +55,18 @@ func (sl *Seeds) GetBestSeedForUrl(u string) *Seed {
 	oto := []byte(to)
 	to = to + "\000"
 
-	candidates := sl.Scan([]byte(from), []byte(to), 1000)
+	keys, values := sl.Scan([]byte(from), []byte(to), 1000)
 
-	for i := len(candidates) - 1; i >= 0; i-- {
-		cand := candidates[i]
-
-		if bytes.Equal(oto, cand.key) {
+	for i := len(keys) - 1; i >= 0; i-- {
+		if bytes.Equal(oto, keys[i]) {
 			var s Seed
-			Decode(cand.value, &s)
+			Decode(values[i], &s)
 			return &s
-		} else if bytes.HasPrefix(oto, cand.key) {
-			k := bytes.TrimRight(cand.key, "/")
+		} else if bytes.HasPrefix(oto, keys[i]) {
+			k := bytes.TrimRight(keys[i], "/")
 			if oto[len(k)] == '/' {
 				var s Seed
-				Decode(cand.value, &s)
+				Decode(values[i], &s)
 				return &s
 			}
 		}
