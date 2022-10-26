@@ -13,7 +13,7 @@ var nullArray = []byte{0}
 
 type HostReservationService struct {
 	HostQueue *OrderedList
-	BusyHost  *OrderedList
+	Hosts     *OrderedList
 	HostAlias *OrderedList
 	BusyAlias *OrderedList
 }
@@ -21,7 +21,7 @@ type HostReservationService struct {
 func NewHostReservationService() *HostReservationService {
 	return &HostReservationService{
 		HostQueue: &OrderedList{},
-		BusyHost:  &OrderedList{},
+		Hosts:     &OrderedList{},
 	}
 }
 
@@ -33,7 +33,7 @@ func (h *HostReservationService) ReserveNextHost() string {
 		host := keys[0][6:]
 		k := keys[0]
 
-		v, _ := h.BusyHost.CompareAndSwap(host, nullArray, ts)
+		v, _ := h.Hosts.CompareAndSwap(host, nullArray, ts)
 		var prev int
 		Decode(v, &prev)
 		h.HostQueue.Delete(k)
@@ -49,14 +49,14 @@ func (h *HostReservationService) ReleaseHost(host string, nextTs int) {
 		panic("Cannot release empty host")
 	}
 
-	p := h.BusyHost.Get([]byte(host))
-	if _, ok := h.BusyHost.CompareAndSwap([]byte(host), p, nullArray); ok {
+	p := h.Hosts.Get([]byte(host))
+	if _, ok := h.Hosts.CompareAndSwap([]byte(host), p, nullArray); ok {
 		h.HostQueue.Put([]byte(fmt.Sprintf("%05d %s", nextTs, host)), nullArray)
 	}
 }
 
 func (h *HostReservationService) AddHost(host string) {
-	if _, ok := h.BusyHost.CompareAndSwap([]byte(host), nil, nullArray); ok {
+	if _, ok := h.Hosts.CompareAndSwap([]byte(host), nil, nullArray); ok {
 		h.HostQueue.Put([]byte(fmt.Sprintf("%05d %s", 0, host)), nullArray)
 	}
 }

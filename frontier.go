@@ -14,10 +14,10 @@ type Frontier struct {
 	hostReservationService *HostReservationService
 }
 
-func NewFrontier(sim *simgo.Simulation) *Frontier {
+func NewFrontier(sim *simgo.Simulation, configFile string) *Frontier {
 	f := &Frontier{
 		sim:    sim,
-		Config: LoadConfig("config.yaml"),
+		Config: LoadConfig(configFile),
 		urlQueue: &UrlQueue{
 			valueType: QueuedUrl{},
 		},

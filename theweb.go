@@ -122,7 +122,7 @@ func (w *TheWeb) timeline(length int, v []int) string {
 			}
 			t++
 		}
-		b.WriteString("\u26ab")
+		b.WriteString("\u25cf")
 		t++
 	}
 
