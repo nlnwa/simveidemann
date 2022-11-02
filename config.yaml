@@ -18,3 +18,9 @@ seeds:
   - url: "http://www.vg.no"
     profiles:
       - p3
+hostaliases:
+  - name: kommuner
+    hosts:
+      - rana.kommune.no
+      - vefsn.kommune.no
+      - nesna.kommune.no

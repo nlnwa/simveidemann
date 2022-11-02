@@ -46,5 +46,5 @@ func (u *QueuedUrl) Key() []byte {
 	if u.Busy {
 		busy = "b"
 	}
-	return []byte(fmt.Sprintf("%s %s%05d %s", NormalizedHost(u.Url), busy, u.Ts, u.Url))
+	return []byte(fmt.Sprintf("%s %s%05d %s", NormalizeHost(u.Url), busy, u.Ts, u.Url))
 }

@@ -28,6 +28,8 @@ func main() {
 
 	fmt.Printf("Seed list\n%s\n", frontier.Config.Seeds.String())
 	fmt.Printf("URL queue\n%s\n", frontier.urlQueue.String())
+	fmt.Printf("Host queue\n%s\n", frontier.hostReservationService.HostQueue.String())
+	//fmt.Printf("Host alias\n%s\n", frontier.hostReservationService.HostAlias.String())
 
 	var harvesters []*Harvester
 	for i := 0; i < numHarvesters; i++ {
@@ -38,9 +40,10 @@ func main() {
 	fmt.Printf("\nURL queue\n%s\n", frontier.urlQueue.String())
 
 	www.PrintStats()
+	fmt.Println()
 
 	for i, h := range harvesters {
-		fmt.Printf("Harvester #%d: Busy: %v, Idle: %v, Load: %v%%\n", i, h.busy, runTime-h.busy, (float64(h.busy)/float64(runTime))*100)
+		fmt.Printf("Harvester #%d: Busy: %v, Idle: %v, Load: %.1f%%\n", i, h.busy, runTime-h.busy, (float64(h.busy)/float64(runTime))*100)
 	}
 }
 

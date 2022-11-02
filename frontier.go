@@ -34,7 +34,14 @@ func NewFrontier(sim *simgo.Simulation, configFile string) *Frontier {
 			Level: 0,
 		}
 		f.urlQueue.Put(qurl.Key(), qurl)
-		f.hostReservationService.AddHost(NormalizedHost(s.Url))
+		f.hostReservationService.AddHost(NormalizeHost(s.Url))
+	}
+
+	keys, vals := f.Config.HostAliases.Scan(nil, nil, 1000)
+	for i := 0; i < len(keys); i++ {
+		var v HostAlias
+		Decode(vals[i], &v)
+		f.hostReservationService.AddHostAlias(&v)
 	}
 
 	return f
@@ -77,7 +84,7 @@ func (f *Frontier) GetNextToFetch() *QueuedUrl {
 
 func (f *Frontier) DoneFetching(qUrl *QueuedUrl, response *WebResource) {
 	politeness := 0
-	defer f.hostReservationService.ReleaseHost(NormalizedHost(qUrl.Url), int(simulation.Now())+politeness)
+	defer f.hostReservationService.ReleaseHost(NormalizeHost(qUrl.Url), int(simulation.Now())+politeness)
 	f.urlQueue.Delete(qUrl.Key())
 	qUrl.Busy = false
 	profiles := f.findProfiles(qUrl)

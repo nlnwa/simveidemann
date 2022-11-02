@@ -10,17 +10,9 @@ import (
 )
 
 type Config struct {
-	Profiles map[string]*Profile
-	Seeds    *Seeds
-}
-
-type Seeds struct {
-	OrderedList
-	valueType interface{}
-}
-
-func (sl *Seeds) String() string {
-	return sl.OrderedList.StringT(sl.valueType)
+	Profiles    map[string]*Profile
+	Seeds       *Seeds
+	HostAliases *HostAliases
 }
 
 type Seed struct {
@@ -45,6 +37,26 @@ type Profile struct {
 
 func (p Profile) String() string {
 	return fmt.Sprintf("(%s: scope: %d, freq: %d)", p.Name, p.Scope, p.Freq)
+}
+
+type HostAliases struct {
+	OrderedList
+	valueType interface{}
+}
+
+type HostAlias struct {
+	Name   string
+	Hosts  []string
+	BusyTS int
+}
+
+type Seeds struct {
+	OrderedList
+	valueType interface{}
+}
+
+func (sl *Seeds) String() string {
+	return sl.OrderedList.StringT(sl.valueType)
 }
 
 func (sl *Seeds) GetBestSeedForUrl(u string) *Seed {
@@ -81,6 +93,9 @@ func LoadConfig(configFile string) *Config {
 		Seeds: &Seeds{
 			valueType: Seed{},
 		},
+		HostAliases: &HostAliases{
+			valueType: []string{},
+		},
 	}
 
 	f1, err := os.Open(configFile)
@@ -97,8 +112,9 @@ func LoadConfig(configFile string) *Config {
 	}
 
 	type Config struct {
-		Profiles []*Profile
-		Seeds    []*SeedConfig
+		Profiles    []*Profile
+		Seeds       []*SeedConfig
+		HostAliases []*HostAlias
 	}
 
 	in := Config{}
@@ -128,6 +144,10 @@ func LoadConfig(configFile string) *Config {
 			seed.Profiles = append(seed.Profiles, c.Profiles[p])
 		}
 		c.Seeds.Put(seed.Key(), Encode(seed))
+	}
+
+	for _, ha := range in.HostAliases {
+		c.HostAliases.Put([]byte(ha.Name), Encode(ha))
 	}
 
 	return c
