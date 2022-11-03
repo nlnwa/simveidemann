@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/fschuetz04/simgo"
 	"github.com/nlnwa/whatwg-url/canonicalizer"
 	"github.com/nlnwa/whatwg-url/url"
 	"strings"
@@ -17,17 +18,45 @@ type HostReservationService struct {
 	HostAlias *OrderedList
 }
 
-func NewHostReservationService() *HostReservationService {
-	return &HostReservationService{
+func NewHostReservationService(sim *simgo.Simulation) *HostReservationService {
+	hrs := &HostReservationService{
 		HostQueue: &OrderedList{},
 		Hosts:     &OrderedList{},
 		HostAlias: &OrderedList{},
 	}
+
+	sim.Process(func(proc simgo.Process) {
+		for {
+			proc.Wait(proc.Timeout(10))
+
+			keys, values := hrs.HostAlias.Scan(nil, nil, 1000)
+			for i := 0; i < len(keys); i++ {
+				if !strings.Contains(string(keys[i]), ".") {
+					var value HostAlias
+					Decode(values[i], &value)
+					if value.BusyTS != 0 && int(sim.Now()) > value.BusyTS {
+						hrs.releaseHostAlias(keys[i])
+					}
+				}
+			}
+
+			keys, values = hrs.Hosts.Scan(nil, nil, 1000)
+			for i := 0; i < len(keys); i++ {
+				var value int
+				Decode(values[i], &value)
+				if value != 0 && int(sim.Now()) > value {
+					hrs.ReleaseHost(string(keys[i]), int(sim.Now()))
+				}
+			}
+		}
+	})
+
+	return hrs
 }
 
 func (h *HostReservationService) ReserveNextHost() string {
 	to := fmt.Sprintf("%05d \uffff", int(simulation.Now()))
-	keys, _ := h.HostQueue.Scan(nil, []byte(to), 10)
+	keys, _ := h.HostQueue.Scan(nil, []byte(to), 100)
 	for _, key := range keys {
 		host := key[6:]
 		ts := int(simulation.Now() + busyTimeout)
@@ -35,12 +64,12 @@ func (h *HostReservationService) ReserveNextHost() string {
 		aliasName := h.HostAlias.Get(host)
 		if aliasName != nil {
 			if !h.reserveHostAlias(aliasName, ts) {
-				return ""
+				continue
 			}
 		}
 
 		if _, ok := h.Hosts.CompareAndSwap(host, nullArray, Encode(ts)); !ok {
-			return ""
+			continue
 		}
 		h.HostQueue.Delete(key)
 
@@ -50,20 +79,24 @@ func (h *HostReservationService) ReserveNextHost() string {
 	return ""
 }
 
-func (h *HostReservationService) ReleaseHost(host string, nextTs int) {
+func (h *HostReservationService) ReleaseHost(host string, nextTs int, opts ...Opt) {
 	if host == "" {
 		panic("Cannot release empty host")
 	}
+
+	h.HostQueue.Put([]byte(fmt.Sprintf("%05d %s", nextTs, host)), nullArray)
 
 	aliasName := h.HostAlias.Get([]byte(host))
 	if aliasName != nil {
 		h.releaseHostAlias(aliasName)
 	}
 
-	p := h.Hosts.Get([]byte(host))
-	if _, ok := h.Hosts.CompareAndSwap([]byte(host), p, nullArray); ok {
-		h.HostQueue.Put([]byte(fmt.Sprintf("%05d %s", nextTs, host)), nullArray)
+	if FailUnsetBusyHost.IsIn(opts) {
+		return
 	}
+
+	p := h.Hosts.Get([]byte(host))
+	h.Hosts.CompareAndSwap([]byte(host), p, nullArray)
 }
 
 func (h *HostReservationService) AddHost(host string) {
