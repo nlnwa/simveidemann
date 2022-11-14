@@ -29,6 +29,6 @@ func (h *Harvester) Run(proc simgo.Process, frontier *Frontier) {
 		proc.Wait(proc.Timeout(1))
 		frontier.DoneFetching(qUrl, r)
 		h.busy = h.busy + int(proc.Now()) - start
-		fmt.Printf("[%4.0f] \u2714  %s\n", proc.Now(), qUrl)
+		fmt.Printf("[%4.0f] \u2714  %4d %s\n", proc.Now(), r.Status, qUrl)
 	}
 }

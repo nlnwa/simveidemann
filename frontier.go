@@ -8,20 +8,16 @@ import (
 )
 
 type Frontier struct {
-	sim                    *simgo.Simulation
-	Config                 *Config
-	urlQueue               *UrlQueue
-	hostReservationService *HostReservationService
+	sim      *simgo.Simulation
+	Config   *Config
+	urlQueue *UrlQueue
 }
 
 func NewFrontier(sim *simgo.Simulation, configFile string) *Frontier {
 	f := &Frontier{
-		sim:    sim,
-		Config: LoadConfig(configFile),
-		urlQueue: &UrlQueue{
-			valueType: QueuedUrl{},
-		},
-		hostReservationService: NewHostReservationService(sim),
+		sim:      sim,
+		Config:   LoadConfig(configFile),
+		urlQueue: NewUrlQueue(sim),
 	}
 	for i := 0; i < f.Config.Seeds.Size(); i++ {
 		s := Seed{}
@@ -32,41 +28,43 @@ func NewFrontier(sim *simgo.Simulation, configFile string) *Frontier {
 			Ts:    0,
 			Url:   s.Url,
 			Level: 0,
+			Seed:  &s,
 		}
-		f.urlQueue.Put(qurl.Key(), qurl)
-		f.hostReservationService.AddHost(NormalizeHost(s.Url))
+		f.urlQueue.Put(qurl)
 	}
 
 	keys, vals := f.Config.HostAliases.Scan(nil, nil, 1000)
 	for i := 0; i < len(keys); i++ {
 		var v HostAlias
 		Decode(vals[i], &v)
-		f.hostReservationService.AddHostAlias(&v)
+		f.urlQueue.hostReservationService.AddHostAlias(&v)
 	}
 
 	return f
 }
 
 func (f *Frontier) GetNextToFetch() *QueuedUrl {
-	host := f.hostReservationService.ReserveNextHost()
+	host := f.urlQueue.hostReservationService.ReserveNextHost()
 	if host == "" {
 		return nil
 	}
 
 	from := []byte(host + " ")
 	to := []byte(fmt.Sprintf("%s %05d \uffff", host, int(simulation.Now())))
-	keys, values := f.urlQueue.Scan(from, to, 1)
+	_, values := f.urlQueue.Scan(from, to, 1)
 
-	if len(keys) == 0 {
+	if len(values) == 0 {
+		// No URL ready for host. Release with ts for next URL in queue or delete host if no url in queue
 		from := []byte(host + " ")
-		to := []byte(fmt.Sprintf("%s \uffff", host))
-		keys, values = f.urlQueue.Scan(from, to, 1)
-		if len(keys) > 0 {
+		to := []byte(fmt.Sprintf("%s \xff", host))
+		_, values = f.urlQueue.Scan(from, to, 1)
+		if len(values) > 0 {
 			var q QueuedUrl
 			Decode(values[0], &q)
-			f.hostReservationService.ReleaseHost(host, q.Ts)
+			f.urlQueue.hostReservationService.ReleaseHost(host, q.Ts)
 		} else {
-			f.hostReservationService.ReleaseHost(host, 2)
+			fmt.Printf("[%4.0f]    Host '%s' deleted\n", simulation.Now(), host)
+			f.urlQueue.hostReservationService.DeleteHost(host)
 		}
 		return nil
 	}
@@ -75,33 +73,35 @@ func (f *Frontier) GetNextToFetch() *QueuedUrl {
 	Decode(values[0], &q)
 	qUrl := &q
 
-	f.urlQueue.Delete(qUrl.Key())
-	qUrl.Busy = true
-	qUrl.LastFetch = int(f.sim.Now())
-	f.urlQueue.Put(qUrl.Key(), qUrl)
+	f.urlQueue.SetBusy(qUrl)
 	return qUrl
 }
 
-func (f *Frontier) DoneFetching(qUrl *QueuedUrl, response *WebResource) {
+func (f *Frontier) DoneFetching(qUrl *QueuedUrl, response *WebResponse) {
 	politeness := 0
 
 	var opts []Opt
 	if response.Status == 1500 {
 		opts = append(opts, FailUnsetBusyHost)
 	}
-	defer f.hostReservationService.ReleaseHost(NormalizeHost(qUrl.Url), int(simulation.Now())+politeness, opts...)
-	f.urlQueue.Delete(qUrl.Key())
-	qUrl.Busy = false
-	profiles := f.findProfiles(qUrl)
+	defer f.urlQueue.hostReservationService.ReleaseHost(NormalizeHost(qUrl.Url), int(simulation.Now())+politeness, opts...)
+
+	seed := f.Config.Seeds.GetBestSeedForUrl(qUrl.Url)
+	profiles := f.findProfiles(seed, qUrl)
 	if len(profiles) > 0 {
-		qUrl.Ts = math.MaxInt32
+		ts := math.MaxInt32
 		for _, profile := range profiles {
-			f.calcDelay(qUrl, profile)
+			t := f.calcDelay(qUrl, profile)
+			if ts > t {
+				ts = t
+			}
 		}
-		f.urlQueue.Put(qUrl.Key(), qUrl)
+		f.urlQueue.SetIdle(qUrl, ts)
 		for _, o := range response.Outlinks {
 			f.handleOutlink(qUrl, o)
 		}
+	} else {
+		f.urlQueue.Delete(qUrl)
 	}
 }
 
@@ -112,15 +112,22 @@ func (f *Frontier) handleOutlink(qUrl *QueuedUrl, outlink string) {
 		Ts:    qUrl.Ts,
 		Url:   outlink,
 		Level: qUrl.Level + 1,
+		Seed:  qUrl.Seed,
 	}
-	if len(f.findProfiles(ol)) > 0 {
-		f.urlQueue.Put(ol.Key(), ol)
+
+	// Maybe there is a Seed with a more specific match
+	seed := f.Config.Seeds.GetBestSeedForUrl(ol.Url)
+	if seed != nil {
+		ol.Seed = seed
+	}
+
+	if len(f.findProfiles(ol.Seed, ol)) > 0 {
+		f.urlQueue.Put(ol)
 	}
 }
 
-func (f *Frontier) findProfiles(qUrl *QueuedUrl) []*Profile {
+func (f *Frontier) findProfiles(seed *Seed, qUrl *QueuedUrl) []*Profile {
 	var pr []*Profile
-	seed := f.Config.Seeds.GetBestSeedForUrl(qUrl.Url)
 	if seed != nil {
 		for _, p := range seed.Profiles {
 			if f.scopeCheck(p, qUrl) {
@@ -131,11 +138,8 @@ func (f *Frontier) findProfiles(qUrl *QueuedUrl) []*Profile {
 	return pr
 }
 
-func (f *Frontier) calcDelay(qUrl *QueuedUrl, profile *Profile) {
-	ts := int(qUrl.LastFetch) + profile.Freq
-	if qUrl.Ts > ts {
-		qUrl.Ts = ts
-	}
+func (f *Frontier) calcDelay(qUrl *QueuedUrl, profile *Profile) int {
+	return qUrl.LastFetch + profile.Freq
 }
 
 func (f *Frontier) scopeCheck(profile *Profile, qUrl *QueuedUrl) bool {

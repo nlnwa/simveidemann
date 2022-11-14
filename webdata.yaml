@@ -1,16 +1,31 @@
 - url: "http://www.nb.no"
-  outlinks:
-    - "http://www.nb.no/aaa"
+  responses:
+    - outlinks:
+        - "http://www.nb.no/aaa"
 
 - url: "https://a@www.nb.no:888/a"
-  outlinks:
-    - "https://a@www.nb.no:888/a/aaa"
-    - "https://a@www.nb.no:888/a/bbb"
+  responses:
+    - outlinks:
+        - "https://a@www.nb.no:888/a/aaa"
+        - "https://a@www.nb.no:888/a/bbb"
 
 - url: "https://a@www.nb.no:888/a/aaa"
-  outlinks:
-    - "https://a@www.nb.no:888/a/aaa/aaa"
+  responses:
+    - outlinks:
+        - "https://a@www.nb.no:888/a/aaa/aaa"
 
 - url: "http://www.vg.no"
-  outlinks:
-    - "https://www.example.com"
+  responses:
+    - status: 404
+      count: 4
+    - status: 200
+      count: 6
+      outlinks:
+        - "https://www.example.com"
+    - status: 1500
+      count: 1
+      outlinks:
+        - "https://www.example.com"
+    - status: 200
+      outlinks:
+        - "https://www.example.com"

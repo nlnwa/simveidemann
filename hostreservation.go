@@ -99,6 +99,19 @@ func (h *HostReservationService) ReleaseHost(host string, nextTs int, opts ...Op
 	h.Hosts.CompareAndSwap([]byte(host), p, nullArray)
 }
 
+func (h *HostReservationService) DeleteHost(host string) {
+	if host == "" {
+		panic("Cannot delete empty host")
+	}
+
+	aliasName := h.HostAlias.Get([]byte(host))
+	if aliasName != nil {
+		h.releaseHostAlias(aliasName)
+	}
+
+	h.Hosts.Delete([]byte(host))
+}
+
 func (h *HostReservationService) AddHost(host string) {
 	if _, ok := h.Hosts.CompareAndSwap([]byte(host), nil, nullArray); ok {
 		h.HostQueue.Put([]byte(fmt.Sprintf("%05d %s", 0, host)), nullArray)

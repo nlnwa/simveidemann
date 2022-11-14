@@ -15,23 +15,40 @@ type TheWeb struct {
 }
 
 type WebResource struct {
-	Url      string
-	Outlinks []string
-	Status   int
+	Url       string
+	Responses []*WebResponse
+	callCount int
 }
 
-func (w *TheWeb) Fetch(u string) *WebResource {
+type WebResponse struct {
+	Outlinks []string
+	Status   int
+	Count    int
+}
+
+func (w *TheWeb) Fetch(u string) *WebResponse {
 	var v *WebResource
 	var ok bool
-	if v, ok = w.resources[u]; !ok {
+	if v, ok = w.resources[u]; !ok || len(v.Responses) == 0 {
 		v = &WebResource{
-			Url:      u,
-			Outlinks: nil,
-			Status:   404,
+			Url: u,
+			Responses: []*WebResponse{{
+				Outlinks: nil,
+				Status:   404,
+			}},
+		}
+	}
+	v.callCount++
+	var r *WebResponse
+	c := 0
+	for _, r = range v.Responses {
+		c += r.Count
+		if v.callCount <= c {
+			break
 		}
 	}
 	w.stats[u] = append(w.stats[u], int(simulation.Now()))
-	return v
+	return r
 }
 
 func LoadWeb(file string) *TheWeb {
@@ -59,8 +76,13 @@ func LoadWeb(file string) *TheWeb {
 		if w.Url == "" {
 			continue
 		}
-		if w.Status == 0 {
-			w.Status = 200
+		for _, r := range w.Responses {
+			if r.Status == 0 {
+				r.Status = 200
+			}
+			if r.Count == 0 {
+				r.Count = 1
+			}
 		}
 		www.resources[w.Url] = w
 	}

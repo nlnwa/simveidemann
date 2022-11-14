@@ -28,7 +28,7 @@ func main() {
 
 	fmt.Printf("Seed list\n%s\n", frontier.Config.Seeds.String())
 	fmt.Printf("URL queue\n%s\n", frontier.urlQueue.String())
-	fmt.Printf("Host queue\n%s\n", frontier.hostReservationService.HostQueue.String())
+	fmt.Printf("Host queue\n%s\n", frontier.urlQueue.hostReservationService.HostQueue.String())
 	//fmt.Printf("Host alias\n%s\n", frontier.hostReservationService.HostAlias.String())
 
 	var harvesters []*Harvester
